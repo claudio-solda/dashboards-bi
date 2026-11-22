@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg"><meta name="theme-color" content="#0f4c5c"><title>Dashboards BI — RH, Comercial, Visão Geral e Varejo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<style>
+:root{--bg:#eaf4f4;--card:#fff;--text:#0f2a30;--mut:#52707a;--ac:#0f4c5c;--ac2:#52b788;--kv:#0f4c5c;--head:#0f4c5c}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,sans-serif;transition:background .25s}
+#top{background:var(--head)}
+.card{background:var(--card);border-radius:12px;padding:14px;border:1px solid color-mix(in srgb,var(--mut) 30%,transparent);box-shadow:0 2px 10px #0002}
+.kpi{border-left:6px solid var(--ac2)}
+.kpi small{color:var(--mut);font-size:12px;font-weight:600}
+.kpi b{display:block;color:var(--kv);font-size:clamp(18px,2.2vw,26px);margin-top:2px}
+h3{font-weight:700;margin-bottom:8px;font-size:15px}
+.chip{padding:4px 12px;border-radius:999px;border:1px solid var(--mut);font-size:13px;cursor:pointer;background:transparent;color:var(--text)}
+.chip.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.tab{padding:8px 14px;border-radius:8px 8px 0 0;font-weight:700;font-size:14px;color:#fff;background:#ffffff22;white-space:nowrap}
+.tab.on{background:#fff;color:#111}
+.btn{font-weight:800;border-radius:10px;padding:10px 16px;font-size:14px;color:#fff;cursor:pointer;transition:background .2s}
+.b1{background:#16a34a;font-size:16px;padding:12px 22px;box-shadow:0 3px 0 #166534}
+.b1:hover{background:#15803d}
+.b2{background:#2563eb}.b3{background:#475569}
+.btn.done{background:#f59e0b!important;color:#111;box-shadow:0 3px 0 #b45309}
+.tw{max-height:520px;overflow:auto;border-radius:10px;border:1px solid color-mix(in srgb,var(--mut) 30%,transparent)}
+table{border-collapse:collapse;width:100%;font-size:13px;background:var(--card)}
+thead th{position:sticky;top:0;background:var(--ac);color:#fff;padding:8px;text-align:left;white-space:nowrap;z-index:1}
+td{padding:4px 8px;border-bottom:1px solid color-mix(in srgb,var(--mut) 25%,transparent);white-space:nowrap}
+td.calc{background:color-mix(in srgb,var(--ac) 12%,transparent);font-weight:600}
+td[contenteditable]:focus{outline:2px solid var(--ac2);background:color-mix(in srgb,var(--ac2) 18%,transparent)}
+</style>
+</head>
+<body>
+<header id="top" class="fixed top-0 inset-x-0 z-50 px-3 pt-2 shadow-lg">
+  <div id="tabs" class="flex gap-1 overflow-x-auto"></div>
+  <div class="flex flex-wrap gap-2 py-2 bg-transparent">
+    <button class="btn b1 bcopy" data-a="cur">COPIAR PLANILHA ATUAL (EXCEL/SHEETS)</button>
+    <button class="btn b2" data-a="all" id="ball">COPIAR TODAS AS 4 PLANILHAS</button>
+    <button class="btn b3" data-a="csv">BAIXAR CSV</button>
+  </div>
+</header>
+<main id="app" class="px-3 pb-10 max-w-[1500px] mx-auto">
+  <h1 id="ttl" class="text-2xl font-extrabold mb-3"></h1>
+  <div id="flt" class="card mb-3 flex flex-wrap gap-x-6 gap-y-2"></div>
+  <div id="kpi" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-3"></div>
+  <div id="ch" class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4"></div>
+  <div class="flex flex-wrap items-center gap-3 mb-2">
+    <h2 class="font-bold text-lg">Base de dados (clique numa célula para editar)</h2>
+    <button class="btn b1 bcopy" data-a="cur">COPIAR PLANILHA ATUAL (EXCEL/SHEETS)</button>
+  </div>
+  <div class="tw"><table id="tb"></table></div>
+</main>
+<script>
+const DATA={"rh":[[1001,"Ana Silva","Recursos Humanos","Analista",25,"",5550,1750,0,"Ativo"],[1002,"Bruno Souza","Financeiro","Analista",32,"",3570,1130,0,"Ativo"],[1003,"Carla Lima","Produção","Operador",26,"",2130,670,0,"Ativo"],[1004,"Diego Costa","Recursos Humanos","Diretor",38,"",5510,1740,0,"Ativo"],[1005,"Elisa Alves","Produção","Facilitador",32,"",2660,840,0,"Ativo"],[1006,"Fábio Rocha","Recursos Humanos","Assistente",28,"",2510,790,0,"Férias"],[1007,"Gisele Dias","Recursos Humanos","Assistente",47,"",2510,790,0,"Ativo"],[1008,"Hugo Mendes","Financeiro","Assistente",45,"",2240,710,0,"Ativo"],[1009,"Irene Ribeiro","Produção","Operador",44,"",2130,670,0,"Ativo"],[1010,"João Nunes","Produção","Facilitador",40,"",2660,840,0,"Afastado"],[1011,"Karen Moura","Financeiro","Diretor",28,"",4560,1440,0,"Ativo"],[1012,"Lucas Pires","Recursos Humanos","Facilitador",43,"",3040,960,0,"Ativo"],[1013,"Marta Castro","Recursos Humanos","Gerente",49,"",3880,1220,0,"Ativo"],[1014,"Nando Ramos","Financeiro","Assistente",33,"",2240,710,0,"Ativo"],[1015,"Olívia Barros","Produção","Operador",30,"",2130,670,0,"Ativo"],[1016,"Paulo Freitas","Recursos Humanos","Assistente",39,"",2510,790,0,"Ativo"],[1017,"Queila Teixeira","Produção","Operador",30,"",2130,670,0,"Férias"],[1018,"Rafael Araújo","Produção","Gerente",31,"",3720,1180,0,"Ativo"],[1019,"Sônia Pinto","Recursos Humanos","Assistente",26,"",2510,790,0,"Ativo"],[1020,"Tiago Cardoso","Produção","Facilitador",29,"",2660,840,0,"Ativo"],[1021,"Úrsula Silva","Produção","Gerente",21,"",3720,1180,0,"Ativo"],[1022,"Vitor Souza","Marketing","Assistente",22,"",3250,1020,0,"Ativo"],[1023,"Wanda Lima","TI","Gerente",31,"",3120,980,0,"Ativo"],[1024,"Xavier Costa","TI","Facilitador",27,"",2280,720,0,"Ativo"],[1025,"Yara Alves","TI","Diretor",44,"",9120,2880,0,"Ativo"],[1026,"Ana Rocha","TI","Assistente",18,"",2660,840,0,"Ativo"],[1027,"Bruno Dias","Produção","Facilitador",24,"",2660,840,0,"Afastado"],[1028,"Carla Mendes","Marketing","Gerente",24,"",5320,1680,0,"Férias"],[1029,"Diego Ribeiro","Recursos Humanos","Facilitador",35,"",3040,960,0,"Ativo"],[1030,"Elisa Nunes","Recursos Humanos","Assistente",41,"",2510,790,0,"Ativo"],[1031,"Fábio Moura","TI","Analista",18,"",4900,1550,0,"Ativo"],[1032,"Gisele Pires","TI","Gerente",42,"",3120,980,0,"Ativo"],[1033,"Hugo Castro","Marketing","Assistente",20,"",3260,1030,0,"Ativo"],[1034,"Irene Ramos","Produção","Operador",29,"",2130,670,0,"Ativo"],[1035,"João Barros","Produção","Operador",43,"",2130,670,0,"Ativo"],[1036,"Karen Freitas","TI","Facilitador",36,"",2280,720,0,"Ativo"],[1037,"Lucas Teixeira","Recursos Humanos","Diretor",32,"",5510,1740,0,"Ativo"],[1038,"Marta Araújo","Marketing","Analista",22,"",3040,960,0,"Ativo"],[1039,"Nando Pinto","Produção","Diretor",23,"",7600,2400,0,"Férias"],[1040,"Olívia Cardoso","Marketing","Analista",19,"",3040,960,0,"Ativo"],[1041,"Paulo Silva","Produção","Facilitador",23,"",2660,840,0,"Ativo"],[1042,"Queila Souza","Financeiro","Gerente",29,"",3800,1200,0,"Ativo"],[1043,"Rafael Lima","Marketing","Assistente",20,"",3250,1020,0,"Ativo"],[1044,"Sônia Costa","TI","Assistente",37,"",2660,840,0,"Afastado"],[1045,"Tiago Alves","Marketing","Assistente",45,"",3250,1020,0,"Ativo"],[1046,"Úrsula Rocha","Recursos Humanos","Gerente",46,"",3880,1220,0,"Ativo"],[1047,"Vitor Dias","Produção","Operador",30,"",2130,670,0,"Ativo"],[1048,"Wanda Mendes","TI","Analista",47,"",4900,1550,0,"Ativo"],[1049,"Xavier Ribeiro","Marketing","Diretor",25,"",9120,2880,0,"Ativo"],[1050,"Yara Nunes","Produção","Operador",42,"",2130,670,0,"Férias"]],"com":[["01/01/2019",2019,"Jan","Excel","Vendedor 01","Sudeste","Cartão de Débito",5,300,0],["06/02/2019",2019,"Fev","Power BI","Vendedor 05","Sudeste","Boleto Bancário",4,300,0],["11/03/2019",2019,"Mar","Python","Vendedor 02","Norte","Cartão de Crédito",18,300,0],["16/04/2019",2019,"Abr","VBA","Vendedor 02","Sudeste","Boleto Bancário",4,300,0],["21/05/2019",2019,"Mai","Excel","Vendedor 04","Sudeste","Boleto Bancário",5,300,0],["26/06/2019",2019,"Jun","Power BI","Vendedor 05","Sudeste","Boleto Bancário",7,300,0],["03/07/2019",2019,"Jul","Python","Vendedor 01","Norte","Boleto Bancário",2,300,0],["08/08/2019",2019,"Ago","VBA","Vendedor 01","Sul","Cartão de Crédito",7,300,0],["13/09/2019",2019,"Set","Excel","Vendedor 03","Sudeste","Boleto Bancário",8,300,0],["18/10/2019",2019,"Out","Power BI","Vendedor 05","Nordeste","Cartão de Débito",8,300,0],["23/11/2019",2019,"Nov","Python","Vendedor 03","Nordeste","Boleto Bancário",9,300,0],["28/12/2019",2019,"Dez","VBA","Vendedor 04","Sudeste","Boleto Bancário",2,300,0],["05/01/2019",2019,"Jan","Power BI","Vendedor 01","Centro-Oeste","Cartão de Débito",2,300,0],["10/02/2019",2019,"Fev","Python","Vendedor 03","Sul","Cartão de Débito",7,300,0],["15/03/2019",2019,"Mar","VBA","Vendedor 05","Centro-Oeste","Cartão de Débito",7,300,0],["20/04/2019",2019,"Abr","Excel","Vendedor 01","Nordeste","Cartão de Crédito",9,300,0],["25/05/2020",2020,"Mai","Power BI","Vendedor 02","Sudeste","Cartão de Crédito",7,300,0],["02/06/2020",2020,"Jun","Python","Vendedor 01","Sul","Cartão de Crédito",2,300,0],["07/07/2020",2020,"Jul","VBA","Vendedor 04","Centro-Oeste","Boleto Bancário",2,300,0],["12/08/2020",2020,"Ago","Excel","Vendedor 04","Centro-Oeste","Cartão de Crédito",13,300,0],["17/09/2020",2020,"Set","Power BI","Vendedor 05","Sudeste","Boleto Bancário",4,300,0],["22/10/2020",2020,"Out","Python","Vendedor 02","Centro-Oeste","Cartão de Débito",2,300,0],["27/11/2020",2020,"Nov","VBA","Vendedor 02","Nordeste","Cartão de Crédito",6,300,0],["04/12/2020",2020,"Dez","Excel","Vendedor 01","Sudeste","Boleto Bancário",2,300,0],["09/01/2020",2020,"Jan","Python","Vendedor 01","Centro-Oeste","Cartão de Crédito",7,300,0],["14/02/2020",2020,"Fev","VBA","Vendedor 04","Sul","Cartão de Crédito",6,300,0],["19/03/2020",2020,"Mar","Excel","Vendedor 02","Norte","Cartão de Débito",4,300,0],["24/04/2020",2020,"Abr","Power BI","Vendedor 02","Nordeste","Cartão de Crédito",7,300,0],["01/05/2020",2020,"Mai","Python","Vendedor 05","Norte","Boleto Bancário",10,300,0],["06/06/2020",2020,"Jun","VBA","Vendedor 04","Sudeste","Cartão de Crédito",14,300,0],["11/07/2020",2020,"Jul","Excel","Vendedor 03","Norte","Boleto Bancário",16,300,0],["16/08/2020",2020,"Ago","Power BI","Vendedor 02","Sul","Boleto Bancário",2,300,0],["21/09/2021",2021,"Set","Python","Vendedor 04","Norte","Cartão de Débito",2,300,0],["26/10/2021",2021,"Out","VBA","Vendedor 05","Centro-Oeste","Cartão de Crédito",10,300,0],["03/11/2021",2021,"Nov","Excel","Vendedor 02","Nordeste","Cartão de Débito",2,300,0],["08/12/2021",2021,"Dez","Power BI","Vendedor 01","Norte","Cartão de Crédito",14,300,0],["13/01/2021",2021,"Jan","VBA","Vendedor 03","Sul","Boleto Bancário",12,300,0],["18/02/2021",2021,"Fev","Excel","Vendedor 04","Sudeste","Cartão de Débito",2,300,0],["23/03/2021",2021,"Mar","Power BI","Vendedor 01","Nordeste","Boleto Bancário",2,300,0],["28/04/2021",2021,"Abr","Python","Vendedor 01","Centro-Oeste","Cartão de Débito",6,300,0],["05/05/2021",2021,"Mai","VBA","Vendedor 05","Norte","Boleto Bancário",7,300,0],["10/06/2021",2021,"Jun","Excel","Vendedor 02","Sudeste","Boleto Bancário",2,300,0],["15/07/2021",2021,"Jul","Power BI","Vendedor 05","Sul","Cartão de Crédito",16,300,0],["20/08/2021",2021,"Ago","Python","Vendedor 05","Centro-Oeste","Cartão de Débito",6,300,0],["25/09/2021",2021,"Set","VBA","Vendedor 04","Norte","Cartão de Crédito",13,300,0],["02/10/2021",2021,"Out","Excel","Vendedor 04","Sul","Cartão de Crédito",7,300,0],["07/11/2021",2021,"Nov","Power BI","Vendedor 02","Nordeste","Cartão de Crédito",6,300,0],["12/12/2021",2021,"Dez","Python","Vendedor 05","Nordeste","Cartão de Débito",7,300,0]],"ger":[["PED-0001",2018,"Jan","PRODUTO A","Cartão de Crédito",14,90,0],["PED-0002",2018,"Fev","PRODUTO B","Cartão de Crédito",29,105,0],["PED-0003",2018,"Mar","PRODUTO C","Boleto Bancário",14,82.5,0],["PED-0004",2018,"Abr","PRODUTO D","Cartão de Crédito",19,120,0],["PED-0005",2018,"Mai","PRODUTO A","Cartão de Crédito",14,90,0],["PED-0006",2018,"Jun","PRODUTO B","Cartão de Crédito",29,105,0],["PED-0007",2018,"Jul","PRODUTO C","Cartão de Crédito",14,82.5,0],["PED-0008",2018,"Ago","PRODUTO D","Cartão de Crédito",45,120,0],["PED-0009",2018,"Set","PRODUTO A","Cartão de Crédito",14,90,0],["PED-0010",2018,"Out","PRODUTO B","Boleto Bancário",29,105,0],["PED-0011",2018,"Nov","PRODUTO C","Boleto Bancário",14,82.5,0],["PED-0012",2018,"Dez","PRODUTO D","Cartão de Crédito",37,120,0],["PED-0013",2018,"Jan","PRODUTO B","Boleto Bancário",29,105,0],["PED-0014",2018,"Fev","PRODUTO C","Boleto Bancário",14,82.5,0],["PED-0015",2018,"Mar","PRODUTO D","Cartão de Crédito",19,120,0],["PED-0016",2018,"Abr","PRODUTO A","Boleto Bancário",14,90,0],["PED-0017",2019,"Mai","PRODUTO B","Cartão de Crédito",29,105,0],["PED-0018",2019,"Jun","PRODUTO C","Boleto Bancário",14,82.5,0],["PED-0019",2019,"Jul","PRODUTO D","Boleto Bancário",26,120,0],["PED-0020",2019,"Ago","PRODUTO A","Cartão de Crédito",14,90,0],["PED-0021",2019,"Set","PRODUTO B","Cartão de Crédito",29,105,0],["PED-0022",2019,"Out","PRODUTO C","Boleto Bancário",14,82.5,0],["PED-0023",2019,"Nov","PRODUTO D","Cartão de Crédito",45,120,0],["PED-0024",2019,"Dez","PRODUTO A","Cartão de Crédito",14,90,0],["PED-0025",2019,"Jan","PRODUTO C","Cartão de Crédito",15,82.5,0],["PED-0026",2019,"Fev","PRODUTO D","Boleto Bancário",45,120,0],["PED-0027",2019,"Mar","PRODUTO A","Cartão de Crédito",14,90,0],["PED-0028",2019,"Abr","PRODUTO B","Cartão de Crédito",29,105,0],["PED-0029",2019,"Mai","PRODUTO C","Cartão de Crédito",14,82.5,0],["PED-0030",2019,"Jun","PRODUTO D","Boleto Bancário",45,120,0],["PED-0031",2019,"Jul","PRODUTO A","Boleto Bancário",27,90,0],["PED-0032",2019,"Ago","PRODUTO B","Boleto Bancário",29,105,0],["PED-0033",2020,"Set","PRODUTO C","Cartão de Crédito",14,82.5,0],["PED-0034",2020,"Out","PRODUTO D","Boleto Bancário",19,120,0],["PED-0035",2020,"Nov","PRODUTO A","Cartão de Crédito",14,90,0],["PED-0036",2020,"Dez","PRODUTO B","Cartão de Crédito",29,105,0],["PED-0037",2020,"Jan","PRODUTO D","Boleto Bancário",44,120,0],["PED-0038",2020,"Fev","PRODUTO A","Cartão de Crédito",14,90,0],["PED-0039",2020,"Mar","PRODUTO B","Boleto Bancário",29,105,0],["PED-0040",2020,"Abr","PRODUTO C","Boleto Bancário",14,82.5,0],["PED-0041",2020,"Mai","PRODUTO D","Boleto Bancário",19,120,0],["PED-0042",2020,"Jun","PRODUTO A","Boleto Bancário",14,90,0],["PED-0043",2020,"Jul","PRODUTO B","Boleto Bancário",29,105,0],["PED-0044",2020,"Ago","PRODUTO C","Cartão de Crédito",14,82.5,0],["PED-0045",2020,"Set","PRODUTO D","Boleto Bancário",19,120,0],["PED-0046",2020,"Out","PRODUTO A","Boleto Bancário",14,90,0],["PED-0047",2020,"Nov","PRODUTO B","Cartão de Crédito",29,105,0],["PED-0048",2020,"Dez","PRODUTO C","Cartão de Crédito",14,82.5,0]],"var":[["V-0001",2017,"Jan","Centro-Oeste","Feminina","Saia","À Vista",1646,34,1500,0],["V-0002",2017,"Jun","E-commerce","Feminina","Saia","Boleto",1646,34,0,0],["V-0003",2017,"Nov","Nordeste","Feminina","Saia","Cartão de Crédito",1646,34,0,0],["V-0004",2018,"Abr","Norte","Feminina","Saia","À Vista",2227,34,1503,0],["V-0005",2018,"Set","Sudeste","Feminina","Saia","Cartão de Crédito",2313,34,0,0],["V-0006",2018,"Fev","Sul","Feminina","Saia","Boleto",2227,34,0,0],["V-0007",2017,"Jul","Norte","Masculina","Casaco","À Vista",1248,42,1500,0],["V-0008",2017,"Dez","Sudeste","Feminina","Casaco","Boleto",1248,42,0,0],["V-0009",2017,"Mai","Sul","Masculina","Casaco","Cartão de Crédito",1248,42,0,0],["V-0010",2018,"Out","Centro-Oeste","Masculina","Casaco","À Vista",1667,42,1523,0],["V-0011",2018,"Mar","E-commerce","Feminina","Casaco","Cartão de Crédito",1779,42,0,0],["V-0012",2018,"Ago","Nordeste","Masculina","Casaco","Boleto",1687,42,0,0],["V-0013",2017,"Jan","Centro-Oeste","Masculina","Camisa","À Vista",1747,28,1500,0],["V-0014",2017,"Jun","E-commerce","Feminina","Camisa","Boleto",1747,28,0,0],["V-0015",2017,"Nov","Nordeste","Masculina","Camisa","Cartão de Crédito",1747,28,0,0],["V-0016",2018,"Abr","Norte","Masculina","Camisa","À Vista",2365,28,3500,0],["V-0017",2018,"Set","Sudeste","Feminina","Camisa","Cartão de Crédito",2542,28,0,0],["V-0018",2018,"Fev","Sul","Masculina","Camisa","Boleto",2365,28,0,0],["V-0019",2017,"Jul","Norte","Masculina","Calça","À Vista",1252,36,1500,0],["V-0020",2017,"Dez","Sudeste","Feminina","Calça","Boleto",1252,36,0,0],["V-0021",2017,"Mai","Sul","Masculina","Calça","Cartão de Crédito",1252,36,0,0],["V-0022",2018,"Out","Centro-Oeste","Masculina","Calça","À Vista",1693,36,3470,0],["V-0023",2018,"Mar","E-commerce","Feminina","Calça","Cartão de Crédito",1833,36,0,0],["V-0024",2018,"Ago","Nordeste","Masculina","Calça","Boleto",1694,36,0,0],["V-0025",2017,"Jan","Centro-Oeste","Masculina","Short","À Vista",150,26,1500,0],["V-0026",2017,"Jun","E-commerce","Feminina","Short","Boleto",284,26,0,0],["V-0027",2017,"Nov","Nordeste","Masculina","Short","Cartão de Crédito",1496,26,0,0],["V-0028",2018,"Abr","Norte","Masculina","Short","À Vista",2389,26,3490,0],["V-0029",2018,"Set","Sudeste","Feminina","Short","Cartão de Crédito",2439,26,0,0],["V-0030",2018,"Fev","Sul","Masculina","Short","Boleto",4000,26,0,0],["V-0031",2017,"Jul","Norte","Masculina","Tênis","À Vista",686,45,1500,0],["V-0032",2017,"Dez","Sudeste","Feminina","Tênis","Boleto",1707,45,0,0],["V-0033",2017,"Mai","Sul","Masculina","Tênis","Cartão de Crédito",682,45,0,0],["V-0034",2018,"Out","Centro-Oeste","Masculina","Tênis","À Vista",150,45,1508,0],["V-0035",2018,"Mar","E-commerce","Feminina","Tênis","Cartão de Crédito",1494,45,0,0],["V-0036",2018,"Ago","Nordeste","Masculina","Tênis","Boleto",152,45,0,0],["V-0037",2017,"Jan","Centro-Oeste","Masculina","Sapato","À Vista",727,40,1500,0],["V-0038",2017,"Jun","E-commerce","Feminina","Sapato","Boleto",804,40,0,0],["V-0039",2017,"Nov","Nordeste","Masculina","Sapato","Cartão de Crédito",726,40,0,0],["V-0040",2018,"Abr","Norte","Masculina","Sapato","À Vista",983,40,1574,0],["V-0041",2018,"Set","Sudeste","Feminina","Sapato","Cartão de Crédito",983,40,0,0],["V-0042",2018,"Fev","Sul","Masculina","Sapato","Boleto",983,40,0,0],["V-0043",2017,"Jul","Norte","Feminina","Vestido","À Vista",653,38,1500,0],["V-0044",2017,"Dez","Sudeste","Feminina","Vestido","Boleto",653,38,0,0],["V-0045",2017,"Mai","Sul","Feminina","Vestido","Cartão de Crédito",653,38,0,0],["V-0046",2018,"Out","Centro-Oeste","Feminina","Vestido","À Vista",883,38,2536,0],["V-0047",2018,"Mar","E-commerce","Feminina","Vestido","Cartão de Crédito",993,38,0,0],["V-0048",2018,"Ago","Nordeste","Feminina","Vestido","Boleto",882,38,0,0],["V-0049",2017,"Jan","Centro-Oeste","Feminina","Sapatilha","À Vista",440,30,1500,0],["V-0050",2017,"Jun","E-commerce","Feminina","Sapatilha","Boleto",441,30,0,0],["V-0051",2017,"Nov","Nordeste","Feminina","Sapatilha","Cartão de Crédito",441,30,0,0],["V-0052",2018,"Abr","Norte","Feminina","Sapatilha","À Vista",597,30,1651,0],["V-0053",2018,"Set","Sudeste","Feminina","Sapatilha","Cartão de Crédito",703,30,0,0],["V-0054",2018,"Fev","Sul","Feminina","Sapatilha","Boleto",597,30,0,0]]};
+const MES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const $=s=>document.querySelector(s);
+const num=v=>Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2});
+const brl=(v,d=0)=>'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const mil=v=>'R$ '+(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil';
+const sum=(a,f)=>a.reduce((s,r)=>s+f(r),0);
+const grp=(a,k,v)=>{const m={};a.forEach(r=>{m[k(r)]=(m[k(r)]||0)+v(r)});return m};
+const srt=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
+const FX=['18-23','23-28','28-33','33-38','38-43','43-48','48-53'];
+const fx=a=>FX[Math.max(0,Math.min(6,Math.floor((a-18)/5)))];
+const TH={
+ rh:{bg:'#eaf4f4',card:'#ffffff',text:'#0f2a30',mut:'#52707a',ac:'#0f4c5c',ac2:'#52b788',kv:'#0f4c5c',head:'#0f4c5c'},
+ com:{bg:'#eef3ff',card:'#ffffff',text:'#0f1e4a',mut:'#4b5d8f',ac:'#1d4ed8',ac2:'#1e3a8a',kv:'#1d4ed8',head:'#1e3a8a'},
+ ger:{bg:'#121212',card:'#1d1b24',text:'#f3f0ff',mut:'#a89fc4',ac:'#6d28d9',ac2:'#a3e635',kv:'#a3e635',head:'#2a1458'},
+ var:{bg:'#18181b',card:'#242429',text:'#fafafa',mut:'#a1a1aa',ac:'#f97316',ac2:'#f97316',kv:'#fb923c',head:'#27272a'}};
+
+/* ---- configuração das 4 abas ---- */
+const T=[
+{id:'rh',name:'01 - RH & Folha',title:'RH & Folha de Pagamento',
+ cols:['ID','Colaborador','Departamento','Cargo','Idade','Faixa Etária','Salário Base (R$)','Encargos (R$)','Custo Total (R$)','Status'],
+ nc:[0,4,6,7,8],cc:[5,8],flt:[],calc:r=>{r[5]=fx(r[4]);r[8]=r[6]+r[7]},
+ kpi:a=>[['Colaboradores',num(a.length)],['Custo Total da Folha',brl(sum(a,r=>r[8]))],['Salário Base Total',brl(sum(a,r=>r[6]))],['Encargos Totais',brl(sum(a,r=>r[7]))],['Custo Médio / Colaborador',brl(a.length?sum(a,r=>r[8])/a.length:0)]],
+ ch:a=>{const d=srt(grp(a,r=>r[2],r=>r[8])),g=srt(grp(a,r=>r[3],r=>r[8]));
+  return[{t:'Custo por Departamento',c:cfg('bar',d.map(x=>x[0]),d.map(x=>x[1]),'#0f4c5c',{h:1,f:brl})},
+  {t:'Salário por Cargo',c:cfg('bar',g.map(x=>x[0]),g.map(x=>x[1]),'#52b788',{h:1,f:brl})},
+  {t:'Colaboradores por Faixa Etária',c:cfg('bar',FX,FX.map(l=>a.filter(r=>r[5]===l).length),'#f4c430')}]}},
+{id:'com',name:'02 - Comercial Azul',title:'Comercial Azul — Cursos',
+ cols:['Data','Ano','Mês','Produto','Vendedor','Região','Forma de Pagamento','Quantidade','Valor Unitário (R$)','Faturamento Total (R$)'],
+ nc:[1,7,8,9],cc:[9],calc:r=>{r[9]=r[7]*r[8]},
+ flt:[{c:3,l:'Produto',o:['Todos','Excel','Power BI','Python','VBA']},{c:1,l:'Ano',o:['Todos','2019','2020','2021']}],
+ kpi:a=>{const p=k=>sum(a.filter(r=>r[6]===k),r=>r[9]);return[['Quantidade Total',num(sum(a,r=>r[7]))],['Faturamento Total',brl(sum(a,r=>r[9]))],['Boleto Bancário',brl(p('Boleto Bancário'))],['Cartão de Crédito',brl(p('Cartão de Crédito'))],['Cartão de Débito',brl(p('Cartão de Débito'))]]},
+ ch:a=>{const m=grp(a,r=>r[2],r=>r[9]),rg=srt(grp(a,r=>r[5],r=>r[9])),vd=srt(grp(a,r=>r[4],r=>r[9])).reverse(),best=vd[vd.length-1];
+  const ab={Sul:'S',Sudeste:'SE','Centro-Oeste':'CO',Norte:'N',Nordeste:'NE'};
+  const bv=best?a.filter(r=>r[4]===best[0]):[],br=grp(bv,r=>r[5],r=>r[9]);
+  const card=`<div class="flex flex-col items-center text-center"><svg width="74" height="74" viewBox="0 0 24 24" fill="none" stroke="var(--ac)" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="9.5" r="3.2"/><path d="M5.8 18.5c1.4-3 3.6-4.2 6.2-4.2s4.8 1.2 6.2 4.2"/></svg>
+  <small style="color:var(--mut);font-weight:700">Melhor Vendedor</small><b class="text-xl" style="color:var(--kv)">${best?best[0]:'—'}</b></div>
+  <div class="mt-3 text-sm">${['S','SE','CO','N','NE'].map(k=>{const n=Object.keys(ab).find(x=>ab[x]===k);return`<div class="flex justify-between py-1 border-b" style="border-color:var(--mut)44"><span>${k}</span><b>${brl(br[n]||0)}</b></div>`}).join('')}
+  <div class="flex justify-between pt-2 font-extrabold"><span>Total</span><span>${brl(best?best[1]:0)}</span></div></div>`;
+  return[{html:card,t:'',w:''},{t:'Faturamento por Mês',w:'lg:col-span-2',c:cfg('line',MES,MES.map(x=>m[x]||0),'#1d4ed8',{f:num})},
+  {t:'Faturamento por Região',c:cfg('bar',rg.map(x=>x[0]),rg.map(x=>x[1]),'#1d4ed8',{h:1,f:brl})},
+  {t:'Faturamento por Vendedor',w:'lg:col-span-2',c:cfg('bar',vd.map(x=>x[0]),vd.map(x=>x[1]),'#1e3a8a',{f:brl})}]}},
+{id:'ger',name:'03 - Visão Geral Roxo',title:'Visão Geral Roxo',
+ cols:['ID Pedido','Ano','Mês','Produto','Forma de Pagamento','Quantidade','Preço Unitário (R$)','Receita Total (R$)'],
+ nc:[1,5,6,7],cc:[7],fd:{6:2,7:2},calc:r=>{r[7]=r[5]*r[6]},
+ flt:[{c:1,l:'Ano',o:['Todos','2018','2019','2020']},{c:3,l:'Produto',o:['Todos','PRODUTO A','PRODUTO B','PRODUTO C','PRODUTO D']}],
+ kpi:a=>{const p=k=>sum(a.filter(r=>r[4]===k),r=>r[7]);return[['Receita Total',brl(sum(a,r=>r[7]),2)],['Quantidade Vendida',num(sum(a,r=>r[5]))],['Boleto Bancário',brl(p('Boleto Bancário'),2)],['Cartão de Crédito',brl(p('Cartão de Crédito'),2)]]},
+ ch:a=>{const m=grp(a,r=>r[2],r=>r[7]),q=grp(a,r=>r[2],r=>r[5]),pd=['PRODUTO A','PRODUTO B','PRODUTO C','PRODUTO D'],pt=grp(a,r=>r[3],r=>r[7]),
+  b=sum(a.filter(r=>r[4]==='Boleto Bancário'),r=>r[7]),c=sum(a.filter(r=>r[4]==='Cartão de Crédito'),r=>r[7]);
+  return[{t:'Receita Total por Mês',w:'lg:col-span-2',c:cfg('bar',MES,MES.map(x=>m[x]||0),'#f97316',{f:mil})},
+  {t:'Total por Produto',c:cfg('bar',pd,pd.map(x=>pt[x]||0),'#a3e635',{h:1,f:mil})},
+  {t:'Quantidade Vendida por Mês',w:'lg:col-span-2',c:cfg('line',MES,MES.map(x=>q[x]||0),'#a78bfa',{fill:1,f:num})},
+  {t:'Distribuição por Pagamento',c:cfg('doughnut',['Boleto Bancário','Cartão de Crédito'],[b,c],'#111',{bg:['#f97316','#a3e635'],f:brl})}]}},
+{id:'var',name:'04 - Varejo & E-commerce',title:'Varejo & E-commerce',
+ cols:['ID Venda','Ano','Mês','Filial','Seção','Produto','Forma de Pagamento','Quantidade','Ticket Médio (R$)','Desconto À Vista (R$)','Faturamento Líquido (R$)'],
+ nc:[1,7,8,9,10],cc:[10],calc:r=>{r[10]=r[7]*r[8]-r[9]},
+ flt:[{c:1,l:'Ano da Venda',o:['Todos','2017','2018']},{c:3,l:'Filial',o:['Todas','Centro-Oeste','E-commerce','Nordeste','Norte','Sudeste','Sul']},
+  {c:5,l:'Produto',o:['Todos','Saia','Casaco','Camisa','Calça','Short','Tênis','Sapato','Vestido','Sapatilha']}],
+ kpi:a=>{const ys=a.map(r=>r[1]),y=S.var[0]!=='Todos'?+S.var[0]:Math.max(...ys,0),k=a.filter(r=>r[1]===y),q=sum(k,r=>r[7]);
+  return[['Ticket Médio de Vendas',brl(q?sum(k,r=>r[10])/q:0,2)],[`Faturamento Total Anual (${y||'—'})`,brl(sum(k,r=>r[10]))],['Desconto por Pagamento à Vista',brl(sum(k,r=>r[9]))],['Faturamento Filial E-commerce',brl(sum(k.filter(r=>r[3]==='E-commerce'),r=>r[10]))]]},
+ ch:a=>{const p=srt(grp(a,r=>r[5],r=>r[10])),s=grp(a,r=>r[4],r=>r[10]),yr=grp(T[3].rows.filter(r=>pass(T[3],r,1)),r=>r[1],r=>r[10]),ye=Object.keys(yr).sort();
+  return[{t:'Faturamento Total por Produto',c:cfg('bar',p.map(x=>x[0]),p.map(x=>x[1]),'#f97316',{h:1,f:brl})},
+  {t:'Faturamento Total por Categoria',c:cfg('bar',['Seção Masculina','Seção Feminina'],[s.Masculina||0,s.Feminina||0],'#f97316',{bg:['#fdba74','#f97316'],f:brl})},
+  {t:'Crescimento Anual de Faturamento',c:cfg('bar',ye,ye.map(k=>yr[k]),'#f97316',{bg:['#fdba74','#f97316'],f:brl})}]}}
+];
+T.forEach(t=>{t.rows=DATA[t.id];t.rows.forEach(r=>t.calc(r))});
+const S={};T.forEach(t=>{S[t.id]=t.flt.map(f=>f.o[0])});function pass(t,r,skip){return t.flt.every((f,i)=>f.c===skip||S[t.id][i]===f.o[0]||String(r[f.c])===S[t.id][i])}
+function cfg(type,lab,val,col,o={}){
+ const h=!!o.h,f=o.f||num,x=TH[T[cur].id],dn=type==='doughnut';
+ const va={beginAtZero:true,grid:{color:x.mut+'33'},ticks:{callback:v=>f(v)}},ca={grid:{display:false}};
+ return{type,data:{labels:lab,datasets:[{data:val,backgroundColor:o.bg||(type==='line'&&o.fill?col+'55':col),borderColor:dn?x.card:col,borderWidth:type==='line'?3:dn?2:0,borderRadius:type==='bar'?4:0,fill:!!o.fill,tension:.35,pointRadius:4,pointBackgroundColor:col}]},
+ options:{indexAxis:h?'y':'x',responsive:true,maintainAspectRatio:false,animation:false,cutout:dn?'55%':undefined,layout:{padding:{top:22,right:h?70:14}},
+  plugins:{legend:{display:dn,position:'bottom'},tooltip:{callbacks:{label:c=>' '+f(c.raw)}},
+   datalabels:{display:true,color:dn?'#111':x.text,anchor:dn?'center':'end',align:dn?'center':(h?'right':'top'),font:{weight:'bold',size:11},clamp:true,
+    formatter:dn?(v,c)=>(v/(c.dataset.data.reduce((p,q)=>p+q,0)||1)*100).toFixed(0)+'%':v=>f(v)}},
+  scales:dn?{}:(h?{x:va,y:ca}:{x:ca,y:va})}}}
+
+/* ---- render ---- */
+let cur=0,charts=[];
+const fc=(t,c,v)=>t.nc.includes(c)&&typeof v==='number'?(c===0?String(v):v.toLocaleString('pt-BR',{minimumFractionDigits:(t.fd||{})[c]||0,maximumFractionDigits:Math.max((t.fd||{})[c]||0,2)})):v;
+const rowsOf=t=>t.rows.filter(r=>pass(t,r));
+function pn(s){s=s.replace(/[R$\s]/g,'');if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');else if(/^\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,'');return s===''?NaN:Number(s)}
+function drawTabs(){$('#tabs').innerHTML=T.map((t,i)=>`<button class="tab ${i===cur?'on':''}" data-t="${i}">${t.name}</button>`).join('')}
+function drawFlt(){const t=T[cur];$('#flt').innerHTML=t.flt.length?t.flt.map((f,i)=>`<div><div class="text-sm font-bold mb-1" style="color:var(--mut)">${f.l}</div><div class="flex flex-wrap gap-1">${f.o.map(o=>`<button class="chip ${S[t.id][i]===o?'on':''}" data-f="${i}" data-v="${o}">${o}</button>`).join('')}</div></div>`).join(''):'<span class="text-sm" style="color:var(--mut)">Esta aba não possui segmentações — edite a tabela abaixo para atualizar os gráficos.</span>'}
+function drawDash(){
+ const t=T[cur],a=rowsOf(t),x=TH[t.id];Chart.defaults.color=x.text;Chart.defaults.borderColor=x.mut+'33';
+ $('#kpi').className='grid grid-cols-2 md:grid-cols-3 gap-3 mb-3 '+(t.id==='com'||t.id==='rh'?'lg:grid-cols-5':t.id==='var'||t.id==='ger'?'lg:grid-cols-4':'');
+ $('#kpi').innerHTML=t.kpi(a).map(k=>`<div class="card kpi"><small>${k[0]}</small><b>${k[1]}</b></div>`).join('');
+ charts.forEach(c=>c.destroy());charts=[];
+ const L=t.ch(a);$('#ch').innerHTML=L.map((c,i)=>`<div class="card ${c.w||''}"><h3>${c.t}</h3>${c.html||`<div style="height:270px"><canvas id="cv${i}"></canvas></div>`}</div>`).join('');
+ L.forEach((c,i)=>{if(c.c)charts.push(new Chart($('#cv'+i),c.c))});
+}
+function drawTable(){const t=T[cur];
+ $('#tb').innerHTML=`<thead><tr>${t.cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${t.rows.map((r,i)=>pass(t,r)?`<tr>${r.map((v,c)=>`<td data-i="${i}" data-c="${c}" ${t.cc.includes(c)?'class="calc"':'contenteditable="true"'}>${fc(t,c,v)}</td>`).join('')}</tr>`:'').join('')}</tbody>`}
+function render(){const t=T[cur],x=TH[t.id];Object.entries(x).forEach(([k,v])=>document.documentElement.style.setProperty('--'+k,v));
+ $('#ttl').textContent=t.title;drawTabs();drawFlt();drawDash();drawTable();pad()}
+const pad=()=>$('#app').style.paddingTop=$('#top').offsetHeight+14+'px';
+addEventListener('resize',pad);
+
+/* ---- eventos ---- */
+document.addEventListener('click',e=>{
+ const tb=e.target.closest('[data-t]');if(tb){cur=+tb.dataset.t;render();return}
+ const ch=e.target.closest('[data-f]');if(ch){S[T[cur].id][+ch.dataset.f]=ch.dataset.v;drawFlt();drawDash();drawTable();return}
+ const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,t=T[cur];
+ if(a==='cur'){copy(tsv(t));flash('.bcopy','COPIADO! COLE NO EXCEL (CTRL+V)')}
+ if(a==='all'){copy(T.map(k=>'=== '+k.name+' ===\n'+tsv(k)).join('\n\n'));flash('#ball','COPIADO! 4 PLANILHAS (CTRL+V)')}
+ if(a==='csv'){const l=document.createElement('a');l.href=URL.createObjectURL(new Blob([csv(t)],{type:'text/csv;charset=utf-8'}));l.download=t.name.replace(/[^\w]+/g,'_')+'.csv';l.click();URL.revokeObjectURL(l.href)}
+});
+$('#tb').addEventListener('input',e=>{const td=e.target.closest('td[contenteditable]');if(!td)return;
+ const t=T[cur],r=t.rows[+td.dataset.i],c=+td.dataset.c,s=td.textContent.trim();
+ if(t.nc.includes(c)){const v=pn(s);if(isNaN(v))return;r[c]=v}else r[c]=s;
+ t.calc(r);td.parentElement.querySelectorAll('td.calc').forEach(k=>k.textContent=fc(t,+k.dataset.c,r[+k.dataset.c]));drawDash()});
+$('#tb').addEventListener('focusout',e=>{const td=e.target.closest('td[contenteditable]');if(!td)return;
+ const t=T[cur],r=t.rows[+td.dataset.i],c=+td.dataset.c;td.textContent=fc(t,c,r[c])});
+
+/* ---- exportação ---- */
+const cell=v=>typeof v==='number'?String(v).replace('.',','):String(v);
+const tsv=t=>[t.cols,...t.rows].map(r=>r.map(v=>cell(v).replace(/[\t\r\n]+/g,' ')).join('\t')).join('\n');
+const csv=t=>'\uFEFF'+[t.cols,...t.rows].map(r=>r.map(v=>{const s=cell(v);return/[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}).join(';')).join('\r\n');
+async function copy(txt){try{await navigator.clipboard.writeText(txt)}catch(e){const a=document.createElement('textarea');a.value=txt;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}}
+function flash(sel,txt){document.querySelectorAll(sel).forEach(b=>{if(!b.dataset.o)b.dataset.o=b.textContent;b.textContent=txt;b.classList.add('done');clearTimeout(b._t);b._t=setTimeout(()=>{b.textContent=b.dataset.o;b.classList.remove('done')},3000)})}
+
+Chart.register(ChartDataLabels);
+render();
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
