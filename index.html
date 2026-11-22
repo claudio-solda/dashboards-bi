@@ -50,6 +50,9 @@ td[contenteditable]:focus{outline:2px solid var(--ac2);background:color-mix(in s
   <div class="flex flex-wrap items-center gap-3 mb-2">
     <h2 class="font-bold text-lg">Base de dados (clique numa célula para editar)</h2>
     <button class="btn b1 bcopy" data-a="cur">COPIAR PLANILHA ATUAL (EXCEL/SHEETS)</button>
+    <button class="btn b2" data-act="add">+ Adicionar linha</button>
+    <button class="btn b3" data-act="clr">Limpar tabela</button>
+    <button class="btn b3" data-act="rst">Restaurar originais</button>
   </div>
   <div class="tw"><table id="tb"></table></div>
 </main>
@@ -119,7 +122,11 @@ const T=[
   {t:'Faturamento Total por Categoria',c:cfg('bar',['Seção Masculina','Seção Feminina'],[s.Masculina||0,s.Feminina||0],'#f97316',{bg:['#fdba74','#f97316'],f:brl})},
   {t:'Crescimento Anual de Faturamento',c:cfg('bar',ye,ye.map(k=>yr[k]),'#f97316',{bg:['#fdba74','#f97316'],f:brl})}]}}
 ];
-T.forEach(t=>{t.rows=DATA[t.id];t.rows.forEach(r=>t.calc(r))});
+const ORIG=JSON.stringify(DATA),KEY='dashbi_v1';
+T.forEach(t=>{t.rows=DATA[t.id]});
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.length===T.length)s.forEach((r,i)=>T[i].rows=r)}catch(e){}
+T.forEach(t=>t.rows.forEach(r=>t.calc(r)));
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(T.map(t=>t.rows)))}catch(e){}};
 const S={};T.forEach(t=>{S[t.id]=t.flt.map(f=>f.o[0])});function pass(t,r,skip){return t.flt.every((f,i)=>f.c===skip||S[t.id][i]===f.o[0]||String(r[f.c])===S[t.id][i])}
 function cfg(type,lab,val,col,o={}){
  const h=!!o.h,f=o.f||num,x=TH[T[cur].id],dn=type==='doughnut';
@@ -147,7 +154,7 @@ function drawDash(){
  L.forEach((c,i)=>{if(c.c)charts.push(new Chart($('#cv'+i),c.c))});
 }
 function drawTable(){const t=T[cur];
- $('#tb').innerHTML=`<thead><tr>${t.cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${t.rows.map((r,i)=>pass(t,r)?`<tr>${r.map((v,c)=>`<td data-i="${i}" data-c="${c}" ${t.cc.includes(c)?'class="calc"':'contenteditable="true"'}>${fc(t,c,v)}</td>`).join('')}</tr>`:'').join('')}</tbody>`}
+ $('#tb').innerHTML=`<thead><tr>${t.cols.map(c=>`<th>${c}</th>`).join('')}<th></th></tr></thead><tbody>${t.rows.map((r,i)=>pass(t,r)?`<tr>${r.map((v,c)=>`<td data-i="${i}" data-c="${c}" ${t.cc.includes(c)?'class="calc"':'contenteditable="true"'}>${fc(t,c,v)}</td>`).join('')}<td><button data-del="${i}" title="Apagar linha" style="cursor:pointer">🗑</button></td></tr>`:'').join('')}</tbody>`}
 function render(){const t=T[cur],x=TH[t.id];Object.entries(x).forEach(([k,v])=>document.documentElement.style.setProperty('--'+k,v));
  $('#ttl').textContent=t.title;drawTabs();drawFlt();drawDash();drawTable();pad()}
 const pad=()=>$('#app').style.paddingTop=$('#top').offsetHeight+14+'px';
@@ -157,6 +164,12 @@ addEventListener('resize',pad);
 document.addEventListener('click',e=>{
  const tb=e.target.closest('[data-t]');if(tb){cur=+tb.dataset.t;render();return}
  const ch=e.target.closest('[data-f]');if(ch){S[T[cur].id][+ch.dataset.f]=ch.dataset.v;drawFlt();drawDash();drawTable();return}
+ const dl=e.target.closest('[data-del]');if(dl){T[cur].rows.splice(+dl.dataset.del,1);save();drawDash();drawTable();return}
+ const ac=e.target.closest('[data-act]');if(ac){const t=T[cur],k=ac.dataset.act;
+  if(k==='add'){const r=t.cols.map((_,c)=>t.nc.includes(c)?0:'');t.flt.forEach((f,i)=>{const v=S[t.id][i];if(v!==f.o[0])r[f.c]=t.nc.includes(f.c)?+v:v});t.calc(r);t.rows.push(r)}
+  if(k==='clr'){if(!confirm('Apagar todas as linhas desta aba?'))return;t.rows=[]}
+  if(k==='rst'){if(!confirm('Restaurar os dados originais de todas as abas?'))return;const o=JSON.parse(ORIG);T.forEach(x=>{x.rows=o[x.id];x.rows.forEach(r=>x.calc(r))})}
+  save();drawDash();drawTable();if(k==='add'){const l=$('#tb tbody').lastElementChild;if(l)l.scrollIntoView({block:'center'})}return}
  const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,t=T[cur];
  if(a==='cur'){copy(tsv(t));flash('.bcopy','COPIADO! COLE NO EXCEL (CTRL+V)')}
  if(a==='all'){copy(T.map(k=>'=== '+k.name+' ===\n'+tsv(k)).join('\n\n'));flash('#ball','COPIADO! 4 PLANILHAS (CTRL+V)')}
@@ -164,8 +177,8 @@ document.addEventListener('click',e=>{
 });
 $('#tb').addEventListener('input',e=>{const td=e.target.closest('td[contenteditable]');if(!td)return;
  const t=T[cur],r=t.rows[+td.dataset.i],c=+td.dataset.c,s=td.textContent.trim();
- if(t.nc.includes(c)){const v=pn(s);if(isNaN(v))return;r[c]=v}else r[c]=s;
- t.calc(r);td.parentElement.querySelectorAll('td.calc').forEach(k=>k.textContent=fc(t,+k.dataset.c,r[+k.dataset.c]));drawDash()});
+ if(t.nc.includes(c)){const v=s===''?0:pn(s);if(isNaN(v))return;r[c]=v}else r[c]=s;
+ t.calc(r);td.parentElement.querySelectorAll('td.calc').forEach(k=>k.textContent=fc(t,+k.dataset.c,r[+k.dataset.c]));drawDash();save()});
 $('#tb').addEventListener('focusout',e=>{const td=e.target.closest('td[contenteditable]');if(!td)return;
  const t=T[cur],r=t.rows[+td.dataset.i],c=+td.dataset.c;td.textContent=fc(t,c,r[c])});
 
